@@ -1,0 +1,19 @@
+-- Helper function to compute simple winrate/record per team from matches table
+-- You can deploy this SQL in Supabase dashboard or via migration.
+-- Not executed automatically by Next.js; use to create the RPC:
+-- create or replace function public.get_team_records()
+-- returns table(name text, wins int, losses int, winrate numeric)
+-- language sql as $$
+--   select
+--     t.name,
+--     coalesce(sum(case when m.winner_id = t.id then 1 else 0 end), 0) as wins,
+--     coalesce(sum(case when m.winner_id is not null and m.winner_id != t.id then 1 else 0 end), 0) as losses,
+--     case
+--       when coalesce(sum(case when m.winner_id is not null then 1 else 0 end),0) = 0 then 0
+--       else coalesce(sum(case when m.winner_id = t.id then 1 else 0 end),0)::numeric /
+--         coalesce(sum(case when m.winner_id is not null then 1 else 0 end),0)
+--     end as winrate
+--   from teams t
+--   left join matches m on m.team_1_id = t.id or m.team_2_id = t.id
+--   group by t.name;
+-- $$ security definer set search_path = public;

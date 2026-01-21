@@ -1,0 +1,268 @@
+# PROMPT CURSOR - LOL TOURNAMENT MANAGER
+
+Tu as accès complet à Supabase, peux créer/modifier tous les fichiers et dossiers. Voici le projet complet à construire.
+
+## 🎯 OBJECTIF GLOBAL
+Créer un site web de gestion de tournoi League of Legends pour une équipe d'amis avec :
+- Gestion des équipes, joueurs, matchs
+- Système de mercato (draft automatique)
+- Feed d'actualités en temps réel
+- Profils joueurs avec stats
+- Authentification avec admin key
+
+## 🛠️ STACK TECHNIQUE
+- **Frontend** : Next.js 14+ avec TypeScript
+- **UI/UX** : Tailwind CSS + ShadcN/UI (design moderne et épuré)
+- **Backend/DB** : Supabase (PostgreSQL, Auth, Storage)
+- **API Champions LoL** : Intégration API officielle Riot Games (données officielles des champions)
+- **Déploiement** : Vercel (ou Netlify au besoin)
+- **Gestion état** : React Hooks + Context API ou Zustand
+
+## 📊 STRUCTURE DE DONNÉES SUPABASE
+
+### Tables obligatoires :
+
+**users**
+- id (uuid, PK)
+- email (string, unique)
+- username (string, unique)
+- password_hash (string)
+- profile_picture_url (string, nullable)
+- role (enum: 'player' | 'admin')
+- is_active (boolean, default: true)
+- created_at (timestamp)
+
+**players**
+- id (uuid, PK)
+- user_id (uuid, FK → users)
+- ingame_nickname (string, unique)
+- role (enum: 'TOP' | 'JUNGLE' | 'MID' | 'ADC' | 'SUPPORT', nullable et modifiable)
+- profile_picture_url (string, nullable)
+- total_matches (integer, default: 0)
+- total_wins (integer, default: 0)
+- is_inactive (boolean, default: false)
+- inactive_reason (string, nullable) // raison du fired
+- created_at (timestamp)
+
+**teams**
+- id (uuid, PK)
+- name (string, unique)
+- captain_id (uuid, FK → players)
+- logo_url (string, nullable)
+- created_at (timestamp)
+- created_month (timestamp) // date de création pour savoir si renouvellement mercato
+
+**team_players**
+- id (uuid, PK)
+- team_id (uuid, FK → teams)
+- player_id (uuid, FK → players)
+- is_substitute (boolean, default: false)
+- joined_at (timestamp)
+
+**player_stats**
+- id (uuid, PK)
+- player_id (uuid, FK → players)
+- champion (string) // nom du champion joué
+- matches_with_champion (integer, default: 0)
+- wins_with_champion (integer, default: 0)
+- total_damage (integer, nullable)
+- created_at (timestamp)
+
+**matches**
+- id (uuid, PK)
+- team_1_id (uuid, FK → teams)
+- team_2_id (uuid, FK → teams)
+- winner_id (uuid, FK → teams, nullable)
+- team_1_score (integer, nullable)
+- team_2_score (integer, nullable)
+- match_date (timestamp)
+- created_at (timestamp)
+
+**match_details** (optionnel mais recommandé)
+- id (uuid, PK)
+- match_id (uuid, FK → matches)
+- player_id (uuid, FK → players)
+- champion_played (string)
+- damage_dealt (integer, nullable)
+- kills (integer, nullable)
+- deaths (integer, nullable)
+- assists (integer, nullable)
+
+**news_feed**
+- id (uuid, PK)
+- type (enum: 'match_result' | 'player_transfer' | 'team_created')
+- title (string)
+- description (string)
+- related_id (uuid, nullable) // ID du match ou joueur concerné
+- created_at (timestamp)
+
+**mercato_settings**
+- id (uuid, PK)
+- mercato_date (timestamp) // date de renouvellement
+- is_active (boolean)
+- number_of_teams (integer)
+- updated_at (timestamp)
+
+## 🎨 DESIGN & UI/UX
+- Design moderne et épuré (minimaliste, inspiré Figma/Discord)
+- Dark mode par défaut (toggle en paramètres)
+- Palette couleur : Bleus/Mauve/Gris neutres (style gaming pro)
+- Responsive mobile-first
+- Animations fluides (Framer Motion optional)
+- Typography claire (Geist ou Inter)
+
+## 📱 PAGES & FONCTIONNALITÉS
+
+### 1️⃣ PAGE ACCUEIL
+- Feed d'actualités (derniers matchs, transferts, changements d'équipes)
+- Classement des équipes (par winrate décroissant)
+- Prochains matchs
+- Stats rapides (nombre de joueurs, équipes actives)
+
+### 2️⃣ ONGLET AUTHENTIFICATION
+- **Login** : email + mot de passe OU admin key spéciale (définie en config)
+- **Register** : création compte joueur (email, password, username, ingame_nickname)
+- Les admins accèdent à tout avec la clé secrète
+- Les joueurs peuvent modifier leur profil (role, photo de profil)
+
+### 3️⃣ ONGLET PROFIL (accessible après login)
+- Fiche joueur personnelle
+- Photo de profil (upload Supabase)
+- Pseudo in-game
+- Rôle (modifiable)
+- Stats globales (winrate, total matches, total wins)
+- Winrate par champion joué
+- Équipe actuelle (ou "Remplaçant" ou "Sans équipe")
+- Historique des matchs
+- Bouton pour modifier son profil
+
+### 4️⃣ ONGLET ÉQUIPES
+- Liste de toutes les équipes en cours
+- Pour chaque équipe : nom, winrate, logo, capitaine, 5 joueurs (4 titulaires + subs visibles)
+- **ADMIN ONLY** : 
+  - Bouton "Gérer équipe" (CRUD sur joueurs, changer capitaine)
+  - Bouton "Supprimer équipe"
+  - Bouton "Marquer joueur comme inactif" (avec raison : "Int games", "Inactif", etc.)
+
+### 5️⃣ ONGLET MATCHS
+- Liste des matchs (passés et à venir)
+- Créer un match (ADMIN ONLY)
+- Entrer résultats manuellement (ADMIN ONLY)
+- Afficher :
+  - Équipes impliquées, score final
+  - Date du match
+  - Pour chaque joueur : champion joué, dégâts, K/D/A (si saisi)
+  - Détails complètes du match en cliquant dessus
+
+### 6️⃣ ONGLET RÈGLES
+- Page statique avec toutes les règles :
+  - Les équipes durent 1 mois (mercato chaque mois à la même date)
+  - Si un joueur absent, le capitaine peut appeler un remplaçant
+  - Un joueur peut être viré de l'équipe s'il "int" (mauvais comportement)
+  - Autres règles à ajouter selon vos envies
+
+### 7️⃣ ONGLET MERCATO (ADMIN ONLY)
+- Affiche la date du prochain mercato
+- Bouton "Lancer le mercato" (si date atteinte)
+- **Processus du mercato** :
+  1. Admin rentre le nombre d'équipes souhaité
+  2. Capitaines choisis ALÉATOIREMENT parmi les joueurs
+  3. Les autres joueurs sont marqués "disponibles"
+  4. **Phase de draft** :
+     - Les capitaines choisissent en ordre aléatoire, tour par tour
+     - Chaque capitaine pick 1 joueur à tour de rôle
+     - Une fois toutes les équipes à 3 joueurs (cap + 2) → lancer la roue
+  5. **Phase roue** :
+     - Chaque capitaine (en ordre aléatoire) lance la roue
+     - Un joueur aléatoire parmi les restants rejoint son équipe
+     - Répéter jusqu'à fin des joueurs
+  6. Les joueurs restants = remplaçants globaux (comptent dans toutes les équipes)
+  7. Confirmation et nouvelle saison lancée
+  8. News feed mise à jour automatiquement
+
+### 8️⃣ ONGLET PARAMÈTRES (ADMIN ONLY)
+- Toggle Dark Mode / Light Mode
+- Afficher la clé admin (masquée par défaut)
+- Configuration Supabase (si nécessaire)
+- Autres paramètres système
+
+## 🔐 AUTHENTIFICATION & AUTORISATIONS
+- **Public** : Accueil, Rules
+- **Players** : Profil perso, voir Équipes/Matchs, News feed
+- **Admin Only** : Mercato, Paramètres, Gestion équipes/joueurs, Lancer matchs, Entrer résultats, Marquer joueur inactif
+- Admin utilise une clé spéciale (string) définie en config/environment
+- Vérifier la clé à la connexion pour octroyer les droits admin
+
+## 📡 API RIOT GAMES
+- Utiliser l'API officielle Riot Games pour :
+  - Récupérer liste complète des champions + images
+  - Afficher l'icône/image du champion joué
+  - Stats officielles du champion (si besoin)
+- Stocker les données en cache (Redis ou Supabase) pour éviter appels répétés
+- Documentation : https://developer.riotgames.com/
+
+## 📸 UPLOADS FICHIERS
+- Format : JPG/PNG
+- Taille max : 5MB
+- Dossier Supabase Storage : `/profiles` (joueurs) et `/teams` (logos équipes)
+- Utiliser signed URLs pour les images
+
+## 🔄 CALCUL WINRATE
+- **Winrate joueur** = total_wins / total_matches * 100
+- **Winrate par champion** = wins_with_champion / matches_with_champion * 100
+- Les remplaçants qui jouent = leurs stats comptent aussi
+- Mis à jour automatiquement après chaque entrée de résultat
+
+## 🔔 ACTUALITÉS (NEWS FEED)
+Générer automatiquement pour :
+- Nouveau match créé
+- Résultat d'un match
+- Changement d'équipe (hors mercato)
+- Joueur marqué inactif (raison visible)
+- Nouveau mercato lancé (teams créées aléatoirement)
+- **PAS de détail excessif pour les actions du mercato** (juste "Mercato lancé" et équipes générées)
+
+## 🚀 DEPLOYMENT
+- Déployer sur **Vercel** (gratuit et optimal pour Next.js)
+- Variables env : API Riot, clé Supabase, clé admin, URL frontend
+- DB Supabase hébergée et accessible partout
+- Images stockées en Supabase Storage (CDN automatique)
+
+## ⚙️ CONFIGURATION REQUISE
+Avant de commencer, créer un fichier `.env.local` avec :
+```
+NEXT_PUBLIC_SUPABASE_URL=xxx
+NEXT_PUBLIC_SUPABASE_ANON_KEY=xxx
+SUPABASE_SERVICE_KEY=xxx
+NEXT_PUBLIC_RIOT_API_KEY=xxx
+ADMIN_SECRET_KEY=xxx (clé admin à définir toi-même)
+NEXT_PUBLIC_APP_NAME=League Tournament
+```
+
+## 📋 CHECKLIST DE DÉVELOPPEMENT
+- [ ] Setup Next.js + Tailwind + ShadcN
+- [ ] Schéma Supabase complet + RLS policies
+- [ ] Authentification (login/register/admin key)
+- [ ] Pages principales (Accueil, Profil, Équipes, Matchs, Règles)
+- [ ] Intégration API Riot Games
+- [ ] Upload fichiers (Supabase Storage)
+- [ ] Système CRUD complet (joueurs, équipes, matchs)
+- [ ] Système Mercato (draft + roue)
+- [ ] News feed automatique
+- [ ] Calcul winrates
+- [ ] Dark/Light mode
+- [ ] Responsive design
+- [ ] Tests + déploiement Vercel
+
+## 📝 NOTES ADDITIONNELLES
+- Code clean et commenté
+- Composants réutilisables
+- Gestion erreurs robuste
+- Loading states et skeleton screens
+- Messages de confirmation avant actions destructives
+- Logs pour debug
+- Performance optimisée (lazy loading, memoization)
+
+---
+
+**C'est parti ! Demande-moi des clarifications si besoin. Tu as tous les droits Supabase, crée les tables, réveille-toi avec un prompt clair et code propre. GL ! 🚀**
